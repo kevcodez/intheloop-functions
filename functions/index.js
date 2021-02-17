@@ -1,6 +1,8 @@
 const functions = require("firebase-functions");
 const { Octokit } = require("@octokit/rest");
 const { createClient } = require("@supabase/supabase-js");
+const { asyncForEach } = require("./asyncForEach");
+const npmFetch = require("npm-registry-fetch");
 
 const octokit = new Octokit();
 const supabase = createClient(
@@ -8,76 +10,125 @@ const supabase = createClient(
   functions.config().supabase.key
 );
 
-// Create and Deploy Your First Cloud Functions
-// https://firebase.google.com/docs/functions/write-firebase-functions
+// idea: posisbly tag release type: stable, beta, milestone, release candidate, eap
 
-exports.refreshReleases = functions.region('europe-west1').https.onRequest(
-  async (request, response) => {
-    await getNewReleases();
+exports.refreshReleasesFromGithub = functions
+  .region("europe-west1")
+  .https.onRequest(async (request, response) => {
+    await getNewReleasesFromGithub();
     response.send("hi");
-  }
-);
-
-exports.refreshReleasesScheduled = functions.region('europe-west1').pubsub
-  .schedule("every 3 hours")
-  .onRun(async () => {
-    await getNewReleases();
   });
 
-async function asyncForEach(array, callback) {
-  for (let index = 0; index < array.length; index++) {
-    await callback(array[index], index, array);
-  }
-}
+exports.refreshReleasesFromNpm = functions
+  .region("europe-west1")
+  .https.onRequest(async (request, response) => {
+    await getNewReleasesFromNpm();
+    response.send("hi");
+  });
 
-const getNewReleases = async () => {
-  const { data, error } = await supabase.from("topic").select("*");
+exports.refreshGithubReleasesScheduled = functions
+  .region("europe-west1")
+  .pubsub.schedule("every 3 hours")
+  .onRun(async () => {
+    await getNewReleasesFromGithub();
+  });
 
-  await asyncForEach(data, async (topic) => {
-    const scmUrlSplit = topic.info.scm.url.split("/");
-    const owner = scmUrlSplit[scmUrlSplit.length - 2];
-    const repo = scmUrlSplit[scmUrlSplit.length - 1];
+exports.refreshNpmReleasesScheduled = functions
+  .region("europe-west1")
+  .pubsub.schedule("every 3 hours")
+  .onRun(async () => {
+    await getNewReleasesFromNpm();
+  });
 
-    const { data } = await octokit.repos.listReleases({
-      owner: owner,
-      repo: repo,
-    });
+const getNewReleasesFromNpm = async () => {
+  const topics = await getTopicsByReleaseType("npm");
 
-    const githubReleases = data.map((release) => {
-      const version = release.tag_name.replace("v", "");
+  await asyncForEach(topics, async (topic) => {
+    const npmData = await npmFetch.json(
+      "/" + topic.info.fetchReleases.meta.package
+    );
+
+    const releasesFromNpm = Object.keys(npmData.versions).map((version) => {
+      const versionDetails = npmData.versions[version];
 
       return {
-        info: {
-          name: release.name,
-          publishedAt: release.published_at,
-          version: version,
-          releaseNotesUrl: release.html_url,
-          prerelease: release.prerelease,
+        name: versionDetails.name,
+        publishedAt: npmData.time[versionDetails.version],
+        version: versionDetails.version,
+        meta: {
+          dependencies: versionDetails.dependencies,
         },
-        topic: topic.id,
       };
     });
 
-    const { data: releasesFromSupabase, error } = await supabase
-      .from("release")
-      .select("info->>version")
-      .eq("topic", topic.id)
-      .in(
-        "info->>version",
-        githubReleases.map((it) => it.info.version)
-      );
+    saveUnknownReleases(topic, releasesFromNpm);
+  });
+};
 
-    const releasesNotInDatabaseYet = githubReleases.filter(
-      (release) =>
-        !releasesFromSupabase.some((it) => it.version === release.info.version)
+const getNewReleasesFromGithub = async () => {
+  const topics = await getTopicsByReleaseType("Github");
+
+  await asyncForEach(topics, async (topic) => {
+    const fetchMeta = topic.info.fetchReleases.meta;
+    const { data } = await octokit.repos.listReleases({
+      owner: fetchMeta.owner,
+      repo: fetchMeta.repo,
+    });
+
+    const releasesFromGithub = data.map((release) => {
+      const version = release.tag_name.replace("v", "");
+
+      return {
+        name: release.name,
+        publishedAt: release.published_at,
+        version: version,
+        releaseNotesUrl: release.html_url,
+        meta: {
+          prerelease: release.prerelease,
+        },
+      };
+    });
+
+    saveUnknownReleases(topic, releasesFromGithub);
+  });
+};
+
+const getTopicsByReleaseType = async (via) => {
+  const { data, error } = await supabase
+    .from("topic")
+    .select("*")
+    .eq("info->fetchReleases->>via", via);
+
+  return data;
+};
+
+const saveUnknownReleases = async (topic, fetchedReleases) => {
+  const { data: releasesFromSupabase, error } = await supabase
+    .from("release")
+    .select("info")
+    .eq("topic", topic.id)
+    .in(
+      "info->>version",
+      fetchedReleases.map((it) => it.version)
     );
 
-    if (releasesNotInDatabaseYet.length) {
-      functions.logger.info("Saving new releases", releasesNotInDatabaseYet);
+  const releasesNotInDatabaseYet = fetchedReleases.filter(
+    (release) =>
+      !releasesFromSupabase.some((it) => it.version === release.info.version)
+  );
+
+  if (releasesNotInDatabaseYet.length) {
+    functions.logger.info("Saving new releases", releasesNotInDatabaseYet);
+  }
+
+  const releasesNotInDatabseWithTopic = releasesNotInDatabaseYet.map(
+    (release) => {
+      return {
+        info: release,
+        topic: topic.id,
+      };
     }
+  );
 
-    await supabase.from("release").insert(releasesNotInDatabaseYet);
-
-    // release type: stable, beta, milestone, release candidate, eap
-  });
+  await supabase.from("release").insert(releasesNotInDatabseWithTopic);
 };
