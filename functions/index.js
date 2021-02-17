@@ -114,7 +114,7 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
 
   const releasesNotInDatabaseYet = fetchedReleases.filter(
     (release) =>
-      !releasesFromSupabase.some((it) => it.version === release.info.version)
+      !releasesFromSupabase.some((it) => it.version === release.version)
   );
 
   if (releasesNotInDatabaseYet.length) {
