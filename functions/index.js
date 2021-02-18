@@ -61,7 +61,12 @@ const getNewReleasesFromNpm = async () => {
       };
     });
 
-    saveUnknownReleases(topic, releasesFromNpm);
+    await saveUnknownReleases(topic, releasesFromNpm);
+
+    const timeKeys = Object.keys(npmData.time);
+    const latestReleaseVersion = timeKeys[timeKeys.length - 1];
+
+    await saveLatestVersion(topic, latestReleaseVersion);
   });
 };
 
@@ -89,7 +94,16 @@ const getNewReleasesFromGithub = async () => {
       };
     });
 
-    saveUnknownReleases(topic, releasesFromGithub);
+    await saveUnknownReleases(topic, releasesFromGithub);
+
+    const { data: latestRelease } = await octokit.repos.getLatestRelease({
+      owner: fetchMeta.owner,
+      repo: fetchMeta.repo,
+    });
+
+    const latestReleaseVersion = latestRelease.tag_name.replace("v", "");
+
+    await saveLatestVersion(topic, latestReleaseVersion);
   });
 };
 
@@ -131,4 +145,26 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
   );
 
   await supabase.from("release").insert(releasesNotInDatabseWithTopic);
+};
+
+const saveLatestVersion = async (topic, latestReleaseVersion) => {
+  if (topic.info.latestVersion === latestReleaseVersion) return;
+
+  functions.logger.info("Setting latest version", {
+    topic: topic.id,
+    version: latestReleaseVersion,
+  });
+
+  const updatedInfo = {
+    ...topic.info,
+    latestVersion: latestReleaseVersion,
+  };
+
+  console.log(updatedInfo.latestVersion)
+  console.log(updatedInfo)
+
+  await supabase.from("topic").update({
+    info: updatedInfo,
+  })
+  .eq('id', topic.id);
 };
