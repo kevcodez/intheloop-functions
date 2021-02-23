@@ -160,9 +160,6 @@ const saveLatestVersion = async (topic, latestReleaseVersion) => {
     latestVersion: latestReleaseVersion,
   };
 
-  console.log(updatedInfo.latestVersion)
-  console.log(updatedInfo)
-
   await supabase.from("topic").update({
     info: updatedInfo,
   })
