@@ -1,15 +1,27 @@
 const functions = require("firebase-functions");
+const cors = require("cors")({ origin: true });
 const { Octokit } = require("@octokit/rest");
 const { createClient } = require("@supabase/supabase-js");
 const { asyncForEach } = require("./asyncForEach");
 const npmFetch = require("npm-registry-fetch");
 const { parseRssFeed } = require("./parseRssFeed");
+const { subscribeToNewsletter } = require("./newsletter");
 
 const octokit = new Octokit();
 const supabase = createClient(
   "https://pvnyntuqgqafdtgzucqj.supabase.co",
   functions.config().supabase.key
 );
+
+exports.subscribeToNewsletter = functions
+  .region("europe-west1")
+  .https.onRequest((request, response) => {
+    cors(request, response, async () => {
+      await subscribeToNewsletter(request.body.email);
+
+      response.send("hi");
+    });
+  });
 
 // idea: posisbly tag release type: stable, beta, milestone, release candidate, eap
 
