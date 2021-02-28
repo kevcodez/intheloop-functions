@@ -17,13 +17,19 @@ exports.subscribeToNewsletter = functions
   .region("europe-west1")
   .https.onRequest((request, response) => {
     cors(request, response, async () => {
-      await subscribeToNewsletter(request.body.email);
+      const { success, error } = await subscribeToNewsletter(
+        request.body.email
+      );
 
-      response.send("hi");
+      if (success) {
+        response.send("Ok");
+      } else {
+        response.status(400).json({ error }).send();
+      }
     });
   });
 
-// idea: posisbly tag release type: stable, beta, milestone, release candidate, eap
+// idea: possibly tag release type: stable, beta, milestone, release candidate, eap
 
 exports.refreshReleasesFromGithub = functions
   .region("europe-west1")
@@ -66,6 +72,7 @@ exports.refreshRssFeedsScheduled = functions
   .onRun(async () => {
     await getNewRssPosts();
   });
+
 const getNewReleasesFromNpm = async () => {
   const topics = await getTopicsByReleaseType("npm");
 
