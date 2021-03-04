@@ -6,7 +6,10 @@ const {
   getNewReleasesFromGithub,
   getNewReleasesFromNpm,
 } = require("./releases");
-const { refreshPopularTweets } = require("./twitter");
+const {
+  refreshPopularTweets,
+  retrieveTweetsWithUserData,
+} = require("./twitter");
 
 exports.subscribeToNewsletter = functions
   .region("europe-west1")
@@ -20,6 +23,27 @@ exports.subscribeToNewsletter = functions
         response.send("Ok");
       } else {
         response.status(400).json({ error }).send();
+      }
+    });
+  });
+
+exports.getTweetsByTopic = functions
+  .region("europe-west1")
+  .https.onRequest((request, response) => {
+    cors(request, response, async () => {
+      const topic = request.body.topic;
+      const page = request.body.page;
+
+      if (!topic || !page || isNaN(page) || Number(page) < 1) {
+        response.status(400).send();
+        return;
+      }
+
+      try {
+        const tweets = await retrieveTweetsWithUserData(topic, page);
+        response.status(200).json(tweets).send();
+      } catch (err) {
+        response.status(500).send();
       }
     });
   });

@@ -13,6 +13,59 @@ function getTwitterClient() {
   });
 }
 
+async function retrieveTweetsWithUserData(topic, page) {
+  const client = getTwitterClient();
+  console.log("a");
+  const pageSize = 20;
+  const pageStart = (page.value - 1) * pageSize;
+  const { data: tweetsFromSupabase, error, count } = await supabase
+    .from("tweets")
+    .select("id", { count: "exact" })
+    .cs("topics", [topic])
+    .range(pageStart, pageStart + pageSize - 1)
+    .limit(25)
+    // .order(`(info->createdAt)::timestamptz`, { ascending: false }); TODO
+
+  if (error) {
+    console.error(error);
+  }
+
+  const hasMore = count > tweetsFromSupabase.length;
+
+  const tweetIds = tweetsFromSupabase.map((it) => it.id);
+
+  const params = {
+    "tweet.fields": "public_metrics,created_at",
+    "user.fields": "profile_image_url",
+    ids: tweetIds,
+    expansions: "author_id",
+  };
+
+  const baseUrl = "tweets";
+  const queryParams = Object.keys(params)
+    .filter((it) => params[it])
+    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+    .join("&");
+
+  const fullUrl = baseUrl + "?" + queryParams;
+
+  const { data, includes } = await client.get(fullUrl);
+
+  const tweetsWithUser = data.map((tweet) => {
+    return {
+      user: includes.users.find((it) => it.id === tweet.author_id),
+      ...tweet,
+    };
+  });
+
+  return {
+    tweets: tweetsWithUser,
+    currentPage: page,
+    hasMore,
+    count,
+  };
+}
+
 async function refreshPopularTweets() {
   const { data: allSearches } = await supabase
     .from("twitter_search")
@@ -130,7 +183,6 @@ async function retrieveTweets(search) {
       .join("&");
 
     const fullUrl = baseUrl + "?" + queryParams;
-    console.log(fullUrl);
 
     const { data, meta, includes } = await client.get(fullUrl);
     if (meta.result_count !== 100) {
@@ -149,4 +201,5 @@ async function retrieveTweets(search) {
 
 module.exports = {
   refreshPopularTweets,
+  retrieveTweetsWithUserData,
 };
