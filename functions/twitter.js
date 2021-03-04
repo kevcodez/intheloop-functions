@@ -15,7 +15,6 @@ function getTwitterClient() {
 
 async function retrieveTweetsWithUserData(topic, page) {
   const client = getTwitterClient();
-  console.log("a");
   const pageSize = 20;
   const pageStart = (page.value - 1) * pageSize;
   const { data: tweetsFromSupabase, error, count } = await supabase
@@ -27,7 +26,7 @@ async function retrieveTweetsWithUserData(topic, page) {
     // .order(`(info->createdAt)::timestamptz`, { ascending: false }); TODO
 
   if (error) {
-    console.error(error);
+    functions.logger.error(error);
   }
 
   const hasMore = count > tweetsFromSupabase.length;
@@ -115,11 +114,9 @@ async function saveNewPopularTweets(tweetSearch) {
     };
   });
 
-  console.log(tweetsToSave);
-
   const { error } = await supabase.from("tweets").insert(tweetsToSave);
   if (error) {
-    console.log(error);
+    functions.logger.error(error);
   }
 }
 
