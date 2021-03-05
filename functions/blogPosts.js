@@ -2,6 +2,7 @@ const { parseRssFeed } = require("./parseRssFeed");
 const { supabase } = require("./supabase");
 const { asyncForEach } = require("./asyncForEach");
 const functions = require("firebase-functions");
+const { Bugsnag } = require("./bugsnag");
 
 const getNewRssPosts = async () => {
   const { data: blogs, error } = await supabase.from("blog").select("*");
@@ -25,6 +26,11 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
       blogPosts.map((it) => it.guid)
     );
 
+  if (error) {
+    Bugsnag.notify(error);
+    return;
+  }
+
   functions.logger.log(
     "Checking " + blogPosts.length + " rss posts for blog " + blog.id
   );
@@ -46,7 +52,13 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
     newBlogPosts.length + " posts to insert for blog " + blog.id
   );
 
-  await supabase.from("blog_posts").insert(newBlogPosts);
+  const { error: errorInserting } = await supabase
+    .from("blog_posts")
+    .insert(newBlogPosts);
+
+  if (errorInserting) {
+    Bugsnag.notify(errorInserting);
+  }
 };
 
 module.exports = {

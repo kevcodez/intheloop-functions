@@ -62,6 +62,8 @@ const getNewReleasesFromGithub = async () => {
 
     await saveUnknownReleases(topic, releasesFromGithub);
 
+    functions.logger.info("Getting latest release", { fetchMeta });
+
     const { data: latestRelease } = await octokit.repos.getLatestRelease({
       owner: fetchMeta.owner,
       repo: fetchMeta.repo,
@@ -79,6 +81,10 @@ const getTopicsByReleaseType = async (via) => {
     .select("*")
     .eq("info->fetchReleases->>via", via);
 
+  if (error) {
+    Bugsnag.notify(error);
+  }
+
   return data;
 };
 
@@ -91,6 +97,10 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
       "info->>version",
       fetchedReleases.map((it) => it.version)
     );
+
+  if (error) {
+    Bugsnag.notify(error);
+  }
 
   const releasesNotInDatabaseYet = fetchedReleases.filter(
     (release) =>
@@ -110,7 +120,13 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
     }
   );
 
-  await supabase.from("release").insert(releasesNotInDatabseWithTopic);
+  const { error: errorInserting } = await supabase
+    .from("release")
+    .insert(releasesNotInDatabseWithTopic);
+
+  if (errorInserting) {
+    Bugsnag.notify(errorInserting);
+  }
 };
 
 const saveLatestVersion = async (topic, latestReleaseVersion) => {
@@ -126,12 +142,16 @@ const saveLatestVersion = async (topic, latestReleaseVersion) => {
     latestVersion: latestReleaseVersion,
   };
 
-  await supabase
+  const { error: errorUpdating } = await supabase
     .from("topic")
     .update({
       info: updatedInfo,
     })
     .eq("id", topic.id);
+
+    if (errorUpdating) {
+      Bugsnag.notify(errorUpdating)
+    }
 };
 
 module.exports = {

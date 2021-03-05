@@ -22,11 +22,12 @@ async function retrieveTweetsWithUserData(topic, page) {
     .select("id", { count: "exact" })
     .cs("topics", [topic])
     .range(pageStart, pageStart + pageSize - 1)
-    .limit(25)
-    // .order(`(info->createdAt)::timestamptz`, { ascending: false }); TODO
+    .limit(25);
+  // .order(`(info->createdAt)::timestamptz`, { ascending: false }); TODO
 
   if (error) {
     functions.logger.error(error);
+    Bugsnag.notify(error);
   }
 
   const hasMore = count > tweetsFromSupabase.length;
@@ -48,6 +49,8 @@ async function retrieveTweetsWithUserData(topic, page) {
 
   const fullUrl = baseUrl + "?" + queryParams;
 
+  functions.logger.info("Requesting twitter", { fullUrl });
+
   const { data, includes } = await client.get(fullUrl);
 
   const tweetsWithUser = data.map((tweet) => {
@@ -66,9 +69,13 @@ async function retrieveTweetsWithUserData(topic, page) {
 }
 
 async function refreshPopularTweets() {
-  const { data: allSearches } = await supabase
+  const { data: allSearches, error } = await supabase
     .from("twitter_search")
     .select("*");
+
+  if (error) {
+    Bugsnag.notify(error);
+  }
 
   await asyncForEach(
     allSearches,
@@ -84,10 +91,14 @@ async function saveNewPopularTweets(tweetSearch) {
 
   const tweetIds = tweets.map((it) => it.id);
 
-  const { data: existingTweets } = await supabase
+  const { data: existingTweets, error } = await supabase
     .from("tweets")
     .select("id")
     .in("id", tweetIds);
+
+  if (error) {
+    Bugsnag.notify(error);
+  }
 
   const existingTweetsIds = existingTweets.map((it) => it.id);
 
@@ -114,9 +125,19 @@ async function saveNewPopularTweets(tweetSearch) {
     };
   });
 
-  const { error } = await supabase.from("tweets").insert(tweetsToSave);
-  if (error) {
-    functions.logger.error(error);
+  if (tweetsToSave.length) {
+    functions.logger.info("Inserting tweets", {
+      tweetSize: tweetsToSave.length,
+    });
+  }
+
+  const { error: errorInserting } = await supabase
+    .from("tweets")
+    .insert(tweetsToSave);
+
+  if (errorInserting) {
+    functions.logger.error(errorInserting);
+    Bugsnag.notify(errorInserting);
   }
 }
 
@@ -180,6 +201,8 @@ async function retrieveTweets(search) {
       .join("&");
 
     const fullUrl = baseUrl + "?" + queryParams;
+
+    functions.logger.info('Requesting twitter url', {fullUrl})
 
     const { data, meta, includes } = await client.get(fullUrl);
     if (meta.result_count !== 100) {

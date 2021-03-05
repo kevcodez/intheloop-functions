@@ -10,6 +10,9 @@ const {
   refreshPopularTweets,
   retrieveTweetsWithUserData,
 } = require("./twitter");
+const { Bugsnag } = require("./bugsnag");
+
+Bugsnag.start({ apiKey: functions.config().bugsnag.api_key })
 
 exports.subscribeToNewsletter = functions
   .region("europe-west1")
@@ -35,6 +38,7 @@ exports.getTweetsByTopic = functions
       const page = request.body.page;
 
       if (!topic || !page || isNaN(page) || Number(page) < 1) {
+        functions.logger.info("Invalid request for tweets by topic");
         response.status(400).send();
         return;
       }
@@ -43,6 +47,7 @@ exports.getTweetsByTopic = functions
         const tweets = await retrieveTweetsWithUserData(topic, page);
         response.status(200).json(tweets).send();
       } catch (err) {
+        functions.logger.error(err);
         response.status(500).send();
       }
     });
