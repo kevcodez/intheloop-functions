@@ -7,6 +7,11 @@ const { Bugsnag } = require("./bugsnag");
 const getNewRssPosts = async () => {
   const { data: blogs, error } = await supabase.from("blog").select("*");
 
+  if (error) {
+    Bugsnag.notify(error);
+    return [];
+  }
+
   const blogsWithRssFeed = blogs.filter((it) => it.info.rssFeedUrl);
 
   await asyncForEach(blogsWithRssFeed, async (blog) => {

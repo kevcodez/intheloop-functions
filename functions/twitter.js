@@ -22,8 +22,8 @@ async function retrieveTweetsWithUserData(topic, page) {
     .select("id", { count: "exact" })
     .cs("topics", [topic])
     .range(pageStart, pageStart + pageSize - 1)
-    .limit(25);
-  // .order(`(info->createdAt)::timestamptz`, { ascending: false }); TODO
+    .limit(25)
+    .order(`created_at`, { ascending: false });
 
   if (error) {
     functions.logger.error(error);
@@ -202,7 +202,7 @@ async function retrieveTweets(search) {
 
     const fullUrl = baseUrl + "?" + queryParams;
 
-    functions.logger.info('Requesting twitter url', {fullUrl})
+    functions.logger.info("Requesting twitter url", { fullUrl });
 
     const { data, meta, includes } = await client.get(fullUrl);
     if (meta.result_count !== 100) {

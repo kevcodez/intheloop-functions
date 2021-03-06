@@ -12,7 +12,7 @@ const {
 } = require("./twitter");
 const { Bugsnag } = require("./bugsnag");
 
-Bugsnag.start({ apiKey: functions.config().bugsnag.api_key })
+Bugsnag.start({ apiKey: functions.config().bugsnag.api_key });
 
 exports.subscribeToNewsletter = functions
   .region("europe-west1")
@@ -34,8 +34,8 @@ exports.getTweetsByTopic = functions
   .region("europe-west1")
   .https.onRequest((request, response) => {
     cors(request, response, async () => {
-      const topic = request.body.topic;
-      const page = request.body.page;
+      const topic = request.query.topic;
+      const page = request.query.page;
 
       if (!topic || !page || isNaN(page) || Number(page) < 1) {
         functions.logger.info("Invalid request for tweets by topic");
