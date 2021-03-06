@@ -122,6 +122,7 @@ async function saveNewPopularTweets(tweetSearch) {
           ...user,
         },
       },
+      created_at: tweet.created_at,
     };
   });
 
