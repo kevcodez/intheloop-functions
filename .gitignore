@@ -67,3 +67,4 @@ node_modules/
 
 .runtimeconfig.json
 test.js
+test-supabase.js

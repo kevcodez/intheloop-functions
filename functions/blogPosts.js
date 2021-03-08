@@ -3,6 +3,7 @@ const { supabase } = require("./supabase");
 const { asyncForEach } = require("./asyncForEach");
 const functions = require("firebase-functions");
 const { Bugsnag } = require("./bugsnag");
+const { detectLanguage } = require("./languageDetection");
 
 const getNewRssPosts = async () => {
   const { data: blogs, error } = await supabase.from("blog").select("*");
@@ -40,18 +41,26 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
     "Checking " + blogPosts.length + " rss posts for blog " + blog.id
   );
 
-  const newBlogPosts = blogPosts
-    .filter(
-      (it) =>
-        !existingBlogPosts.some((existing) => existing.info.guid === it.guid)
-    )
-    .map((blogPostInfo) => {
-      return {
-        info: blogPostInfo,
-        blog_id: blog.id,
-        topics: blog.topics,
-      };
+  const unsavedBlogPosts = blogPosts.filter(
+    (it) =>
+      !existingBlogPosts.some((existing) => existing.info.guid === it.guid)
+  );
+
+  const newBlogPosts = [];
+
+  await asyncForEach(unsavedBlogPosts, async (blogPostInfo) => {
+    const blogPostLanguage = await detectLanguage(blogPostInfo.summary);
+    functions.logger.info("Detected language for blog post", {
+      blogPostLanguage,
     });
+
+    newBlogPosts.push({
+      info: blogPostInfo,
+      blog_id: blog.id,
+      topics: blog.topics,
+      language: blogPostLanguage,
+    });
+  });
 
   functions.logger.log(
     newBlogPosts.length + " posts to insert for blog " + blog.id
