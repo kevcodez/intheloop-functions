@@ -9,7 +9,15 @@ const translate = new Translate({
 async function detectLanguage(text) {
   const strippedText = text.replace(/(<([^>]+)>)/gi, "");
   const htmlEntitiesDecoded = decode(strippedText);
-  const detections = await translate.detect(htmlEntitiesDecoded);
+
+  // Google Cloud bills based on the amount of characters
+  const maxCharacterCount = 250;
+  const partOfTheText =
+    htmlEntitiesDecoded.length > maxCharacterCount
+      ? htmlEntitiesDecoded.slice(0, maxCharacterCount)
+      : htmlEntitiesDecoded;
+
+  const detections = await translate.detect(partOfTheText);
   const detectionsArray = Array.isArray(detections) ? detections : [detections];
   if (detectionsArray.length) {
     return detectionsArray[0].language;
