@@ -9,6 +9,7 @@ const getNewRssPosts = async () => {
   const { data: blogs, error } = await supabase.from("blog").select("*");
 
   if (error) {
+    functions.logger.error(error)
     Bugsnag.notify(error);
     return [];
   }
@@ -33,6 +34,7 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
     );
 
   if (error) {
+    functions.logger.error(error)
     Bugsnag.notify(error);
     return;
   }

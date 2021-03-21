@@ -74,6 +74,7 @@ async function refreshPopularTweets() {
     .select("*");
 
   if (error) {
+    functions.logger.error(error)
     Bugsnag.notify(error);
   }
 
@@ -97,6 +98,7 @@ async function saveNewPopularTweets(tweetSearch) {
     .in("id", tweetIds);
 
   if (error) {
+    functions.logger.error(error)
     Bugsnag.notify(error);
   }
 

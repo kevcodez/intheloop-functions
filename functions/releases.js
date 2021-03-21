@@ -3,6 +3,7 @@ const { Octokit } = require("@octokit/rest");
 const { supabase } = require("./supabase");
 const { asyncForEach } = require("./asyncForEach");
 const npmFetch = require("npm-registry-fetch");
+const { Bugsnag } = require("./bugsnag");
 
 const octokit = new Octokit();
 
@@ -14,7 +15,7 @@ const getNewReleasesFromNpm = async () => {
       "/" + topic.info.fetchReleases.meta.package
     );
 
-    const releasesFromNpm = Object.keys(npmData.versions).map((version) => {
+    const releasesFromNpm = Object.keys(npmData.versions).filter(it => !it.startsWith("0.0.0")).map((version) => {
       const versionDetails = npmData.versions[version];
 
       return {
@@ -29,7 +30,7 @@ const getNewReleasesFromNpm = async () => {
 
     await saveUnknownReleases(topic, releasesFromNpm);
 
-    const timeKeys = Object.keys(npmData.time);
+    const timeKeys = Object.keys(npmData.time).filter(it => !it.startsWith('0.0.0'));
     const latestReleaseVersion = timeKeys[timeKeys.length - 1];
 
     await saveLatestVersion(topic, latestReleaseVersion);
@@ -82,6 +83,7 @@ const getTopicsByReleaseType = async (via) => {
     .eq("info->fetchReleases->>via", via);
 
   if (error) {
+    functions.logger.error(error);
     Bugsnag.notify(error);
   }
 
@@ -89,6 +91,12 @@ const getTopicsByReleaseType = async (via) => {
 };
 
 const saveUnknownReleases = async (topic, fetchedReleases) => {
+  
+  functions.logger.info("Fetched releases", {
+    topic,
+    releases: fetchedReleases.map((it) => it.version),
+  });
+
   const { data: releasesFromSupabase, error } = await supabase
     .from("release")
     .select("info")
@@ -96,15 +104,16 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
     .in(
       "info->>version",
       fetchedReleases.map((it) => it.version)
-    );
+    )
 
   if (error) {
-    Bugsnag.notify(error);
+    functions.logger.error(error.message);
+    Bugsnag.notify(new Error(error.message));
   }
 
   const releasesNotInDatabaseYet = fetchedReleases.filter(
     (release) =>
-      !releasesFromSupabase.some((it) => it.version === release.version)
+      !releasesFromSupabase.some((it) => it.info.version === release.version)
   );
 
   if (releasesNotInDatabaseYet.length) {
@@ -149,9 +158,10 @@ const saveLatestVersion = async (topic, latestReleaseVersion) => {
     })
     .eq("id", topic.id);
 
-    if (errorUpdating) {
-      Bugsnag.notify(errorUpdating)
-    }
+  if (errorUpdating) {
+    functions.logger.error(errorUpdating);
+    Bugsnag.notify(errorUpdating);
+  }
 };
 
 module.exports = {
