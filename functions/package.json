@@ -16,7 +16,7 @@
     "@bugsnag/js": "^7.9.0",
     "@google-cloud/translate": "^6.1.0",
     "@octokit/rest": "^18.3.5",
-    "@supabase/supabase-js": "^1.6.0",
+    "@supabase/supabase-js": "^1.7.0",
     "cheerio": "^1.0.0-rc.5",
     "cors": "^2.8.5",
     "firebase-admin": "^9.2.0",

@@ -35,7 +35,7 @@ async function retrieveTweetsWithUserData(topic, page) {
   const tweetIds = tweetsFromSupabase.map((it) => it.id);
 
   const params = {
-    "tweet.fields": "public_metrics,created_at",
+    "tweet.fields": "public_metrics,created_at,entities",
     "user.fields": "profile_image_url",
     ids: tweetIds,
     expansions: "author_id",
