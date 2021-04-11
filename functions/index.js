@@ -9,6 +9,7 @@ const {
 const {
   refreshPopularTweets,
   retrieveTweetsWithUserData,
+  retrieveTweets,
 } = require("./twitter");
 const { Bugsnag } = require("./bugsnag");
 
@@ -53,40 +54,28 @@ exports.getTweetsByTopic = functions
     });
   });
 
-// idea: possibly tag release type: stable, beta, milestone, release candidate, eap
-
-exports.refreshReleasesFromGithub = functions
+exports.retrieveTweetsBySearch = functions
   .region("europe-west1")
-  .https.onRequest(async (request, response) => {
-    await getNewReleasesFromGithub();
-    response.send("hi");
-  });
+  .https.onRequest((request, response) => {
+    cors(request, response, async () => {
+      if (!request.body || request.method !== "POST") {
+        return response.status(400).send();
+      }
 
-exports.refreshReleasesFromNpm = functions
-  .region("europe-west1")
-  .https.onRequest(async (request, response) => {
-    await getNewReleasesFromNpm();
-    response.send("hi");
-  });
-
-exports.getNewRssPosts = functions
-  .region("europe-west1")
-  .https.onRequest(async (request, response) => {
-    await getNewRssPosts();
-    response.send("hi");
-  });
-
-exports.getPopularTweets = functions
-  .region("europe-west1")
-  .https.onRequest(async (request, response) => {
-    await refreshPopularTweets();
-    response.send("hi");
+      try {
+        const data = await retrieveTweets(request.body);
+        return response.status(200).json(data).send();
+      } catch (err) {
+        return response.status(500).send(err);
+      }
+    });
   });
 
 exports.refreshGithubReleasesScheduled = functions
   .region("europe-west1")
   .pubsub.schedule("every 3 hours")
   .onRun(async () => {
+    // idea: possibly tag release type: stable, beta, milestone, release candidate, eap
     await getNewReleasesFromGithub();
   });
 

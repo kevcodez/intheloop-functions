@@ -74,7 +74,7 @@ async function refreshPopularTweets() {
     .select("*");
 
   if (error) {
-    functions.logger.error(error)
+    functions.logger.error(error);
     Bugsnag.notify(error);
   }
 
@@ -98,7 +98,7 @@ async function saveNewPopularTweets(tweetSearch) {
     .in("id", tweetIds);
 
   if (error) {
-    functions.logger.error(error)
+    functions.logger.error(error);
     Bugsnag.notify(error);
   }
 
@@ -154,15 +154,19 @@ async function findPopularTweets(tweetSearch) {
   await asyncForEach(tweetSearch.info.searches, async (search) => {
     const { tweets, users } = await retrieveTweets(search);
     allTweets = allTweets.concat(tweets);
-    allUsers = allUsers.concat(allUsers);
+    allUsers = allUsers.concat(users);
   });
 
   const popularTweets = filterPopularTweets(allTweets, tweetSearch);
 
   return {
-    tweets: popularTweets,
-    users: allUsers,
+    tweets: removeDuplicates(popularTweets, "id"),
+    users: removeDuplicates(allUsers, "id"),
   };
+}
+
+function removeDuplicates(array, key) {
+  return [...new Map(array.map((item) => [item[key], item])).values()];
 }
 
 function filterPopularTweets(tweets, tweetSearch) {
@@ -225,4 +229,5 @@ async function retrieveTweets(search) {
 module.exports = {
   refreshPopularTweets,
   retrieveTweetsWithUserData,
+  retrieveTweets,
 };
