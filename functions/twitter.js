@@ -218,12 +218,12 @@ async function retrieveTweets(search) {
       nextToken = meta.next_token;
     }
     allTweets = allTweets.concat(data);
-    users = users.concat(includes.users);
+    users = users.concat(includes?.users || []);
 
     new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  return { tweets: allTweets, users };
+  return { tweets: allTweets.filter((it) => it), users };
 }
 
 module.exports = {
