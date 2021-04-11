@@ -15,23 +15,29 @@ const getNewReleasesFromNpm = async () => {
       "/" + topic.info.fetchReleases.meta.package
     );
 
-    const releasesFromNpm = Object.keys(npmData.versions).filter(it => !it.startsWith("0.0.0")).map((version) => {
-      const versionDetails = npmData.versions[version];
+    const releasesFromNpm = Object.keys(npmData.versions)
+      .filter((it) => !it.startsWith("0.0.0") && !it.includes("canary"))
+      .map((version) => {
+        const versionDetails = npmData.versions[version];
 
-      return {
-        name: versionDetails.name,
-        publishedAt: npmData.time[versionDetails.version],
-        version: versionDetails.version,
-        meta: {
-          dependencies: versionDetails.dependencies,
-        },
-      };
-    });
+        return {
+          name: versionDetails.name,
+          publishedAt: npmData.time[versionDetails.version],
+          version: versionDetails.version,
+          meta: {
+            dependencies: versionDetails.dependencies,
+          },
+        };
+      });
 
     await saveUnknownReleases(topic, releasesFromNpm);
 
-    const timeKeys = Object.keys(npmData.time).filter(it => !it.startsWith('0.0.0'));
+    const timeKeys = Object.keys(npmData.time).filter(
+      (it) => !it.startsWith("0.0.0")  && !it.includes("canary")
+    );
     const latestReleaseVersion = timeKeys[timeKeys.length - 1];
+
+    console.log("latest " + latestReleaseVersion);
 
     await saveLatestVersion(topic, latestReleaseVersion);
   });
@@ -91,11 +97,13 @@ const getTopicsByReleaseType = async (via) => {
 };
 
 const saveUnknownReleases = async (topic, fetchedReleases) => {
-  
   functions.logger.info("Fetched releases", {
     topic,
     releases: fetchedReleases.map((it) => it.version),
   });
+
+  console.log("fff ");
+  console.log(fetchedReleases.map((it) => it.version));
 
   const { data: releasesFromSupabase, error } = await supabase
     .from("release")
@@ -104,7 +112,7 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
     .in(
       "info->>version",
       fetchedReleases.map((it) => it.version)
-    )
+    );
 
   if (error) {
     functions.logger.error(error.message);
