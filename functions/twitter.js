@@ -196,9 +196,10 @@ async function retrieveTweets(search) {
       max_results: 100,
       "tweet.fields": "public_metrics,created_at",
       "user.fields": "profile_image_url",
+      "media.fields": "preview_image_url",
       query: search.query,
       next_token: nextToken,
-      expansions: "author_id",
+      expansions: "author_id,attachments.media_keys",
     };
 
     const baseUrl = "tweets/search/recent";
