@@ -73,6 +73,10 @@ exports.retrieveTweetsBySearch = functions
 
 exports.refreshGithubReleasesScheduled = functions
   .region("europe-west1")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
   .pubsub.schedule("every 3 hours")
   .onRun(async () => {
     // idea: possibly tag release type: stable, beta, milestone, release candidate, eap
@@ -81,6 +85,10 @@ exports.refreshGithubReleasesScheduled = functions
 
 exports.refreshNpmReleasesScheduled = functions
   .region("europe-west1")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
   .pubsub.schedule("every 3 hours")
   .onRun(async () => {
     await getNewReleasesFromNpm();
@@ -88,6 +96,10 @@ exports.refreshNpmReleasesScheduled = functions
 
 exports.refreshRssFeedsScheduled = functions
   .region("europe-west1")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
   .pubsub.schedule("every 6 hours")
   .onRun(async () => {
     await getNewRssPosts();
@@ -95,6 +107,10 @@ exports.refreshRssFeedsScheduled = functions
 
 exports.refreshPopularTweetsScheduled = functions
   .region("europe-west1")
+  .runWith({
+    timeoutSeconds: 300,
+    memory: "1GB",
+  })
   .pubsub.schedule("every 2 hours")
   .onRun(async () => {
     await refreshPopularTweets();
