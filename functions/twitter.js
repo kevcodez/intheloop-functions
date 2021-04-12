@@ -37,8 +37,9 @@ async function retrieveTweetsWithUserData(topic, page) {
   const params = {
     "tweet.fields": "public_metrics,created_at,entities",
     "user.fields": "profile_image_url",
+    "media.fields": "preview_image_url",
     ids: tweetIds,
-    expansions: "author_id",
+    expansions: "author_id,attachments.media_keys",
   };
 
   const baseUrl = "tweets";
@@ -56,6 +57,7 @@ async function retrieveTweetsWithUserData(topic, page) {
   const tweetsWithUser = data.map((tweet) => {
     return {
       user: includes.users.find((it) => it.id === tweet.author_id),
+      includes,
       ...tweet,
     };
   });
@@ -196,10 +198,9 @@ async function retrieveTweets(search) {
       max_results: 100,
       "tweet.fields": "public_metrics,created_at",
       "user.fields": "profile_image_url",
-      "media.fields": "preview_image_url",
       query: search.query,
       next_token: nextToken,
-      expansions: "author_id,attachments.media_keys",
+      expansions: "author_id",
     };
 
     const baseUrl = "tweets/search/recent";
