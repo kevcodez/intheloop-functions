@@ -184,8 +184,8 @@ function filterPopularTweets(tweets, tweetSearch) {
 
 async function retrieveTweets(search) {
   const client = getTwitterClient();
-  const twoDaysAgo = new Date();
-  twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+  const oneDayAgo = new Date();
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
   let allTweets = [];
   let users = [];
@@ -194,7 +194,7 @@ async function retrieveTweets(search) {
 
   while (hasMore) {
     const params = {
-      start_time: twoDaysAgo.toISOString(),
+      start_time: oneDayAgo.toISOString(),
       max_results: 100,
       "tweet.fields": "public_metrics,created_at",
       "user.fields": "profile_image_url",

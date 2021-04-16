@@ -111,7 +111,7 @@ exports.refreshPopularTweetsScheduled = functions
     timeoutSeconds: 300,
     memory: "1GB",
   })
-  .pubsub.schedule("every 2 hours")
+  .pubsub.schedule("every 8 hours")
   .onRun(async () => {
     await refreshPopularTweets();
   });
