@@ -63,7 +63,8 @@ exports.retrieveTweetsBySearch = functions
       }
 
       try {
-        const data = await retrieveTweets(request.body);
+        const { search, popularitySettings } = request.body;
+        const data = await retrieveTweets(search, popularitySettings);
         return response.status(200).json(data).send();
       } catch (err) {
         return response.status(500).send(err);

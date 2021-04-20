@@ -2,8 +2,9 @@ const functions = require("firebase-functions");
 const Twitter = require("twitter-lite");
 const { asyncForEach } = require("./asyncForEach");
 const { supabase } = require("./supabase");
+const { Bugsnag } = require("./bugsnag");
 
-function getTwitterClient() {
+function getTwitterClientV2() {
   return new Twitter({
     version: "2",
     extension: false,
@@ -13,8 +14,18 @@ function getTwitterClient() {
   });
 }
 
+function getTwitterClientV1() {
+  return new Twitter({
+    version: "1.1",
+    extension: false,
+    consumer_key: functions.config().twitter.consumer_key,
+    consumer_secret: functions.config().twitter.consumer_secret,
+    bearer_token: functions.config().twitter.bearer_token,
+  });
+}
+
 async function retrieveTweetsWithUserData(topic, page) {
-  const client = getTwitterClient();
+  const client = getTwitterClientV2();
   const pageSize = 20;
   const pageStart = (page - 1) * pageSize;
   const { data: tweetsFromSupabase, error, count } = await supabase
@@ -91,17 +102,15 @@ async function refreshPopularTweets() {
 }
 
 async function saveNewPopularTweets(tweetSearch) {
-  // todo restrict to not update too frequently
-  const lastUpdatedAt = tweetSearch.last_updated_at;
+  const tweets = await findPopularTweets(tweetSearch);
 
-  const { tweets, users } = await findPopularTweets(tweetSearch);
-
-  const tweetIds = tweets.map((it) => it.id);
+  const tweetIds = tweets.map((it) => it.id_str);
 
   const { data: existingTweets, error } = await supabase
     .from("tweets")
     .select("id")
     .in("id", tweetIds);
+
 
   if (error) {
     functions.logger.error(error);
@@ -111,24 +120,21 @@ async function saveNewPopularTweets(tweetSearch) {
   const existingTweetsIds = existingTweets.map((it) => it.id);
 
   const nonExistingTweets = tweets.filter(
-    (it) => !existingTweetsIds.includes(it.id)
+    (it) => !existingTweetsIds.includes(it.id_str)
   );
 
   functions.logger.log(`Saving ${nonExistingTweets.length} new tweets`);
 
   const tweetsToSave = nonExistingTweets.map((tweet) => {
-    const user = users.find((user) => user.id === tweet.author_id);
     return {
-      id: tweet.id,
+      id: tweet.id_str,
       topics: [tweetSearch.topic],
       info: {
-        id: tweet.id,
-        authorId: tweet.author_id,
+        id: tweet.id_str,
+        authorId: tweet.user.id,
         text: tweet.text,
         createdAt: tweet.created_at,
-        author: {
-          ...user,
-        },
+        author: tweet.user,
       },
       created_at: tweet.created_at,
     };
@@ -151,63 +157,42 @@ async function saveNewPopularTweets(tweetSearch) {
 }
 
 async function findPopularTweets(tweetSearch) {
-  /* { "popular": {  "minLikes": "80", "minReplies": "30" },
-         "searches": [ {"query": "kotlin -is:retweet lang:en"}]} */
-
   let allTweets = [];
-  let allUsers = [];
 
   await asyncForEach(tweetSearch.info.searches, async (search) => {
-    const { tweets, users } = await retrieveTweets(search);
+    const tweets = await retrieveTweets(search, tweetSearch.info.popular);
     allTweets = allTweets.concat(tweets);
-    allUsers = allUsers.concat(users);
   });
 
-  const popularTweets = filterPopularTweets(allTweets, tweetSearch);
-
-  return {
-    tweets: removeDuplicates(popularTweets, "id"),
-    users: removeDuplicates(allUsers, "id"),
-  };
+  return removeDuplicates(allTweets, "id");
 }
 
 function removeDuplicates(array, key) {
   return [...new Map(array.map((item) => [item[key], item])).values()];
 }
 
-function filterPopularTweets(tweets, tweetSearch) {
-  const minLikes = tweetSearch.info.popular.minLikes;
-  const minReplies = tweetSearch.info.popular.minReplies;
-
-  return tweets.filter(
-    (it) =>
-      it.public_metrics.like_count >= minLikes ||
-      it.public_metrics.reply_count > minReplies
-  );
-}
-
-async function retrieveTweets(search) {
-  const client = getTwitterClient();
+async function retrieveTweets(search, popularitySettings) {
+  // V2 API does not allow to filter by min favorites/replies meaning we have to loop through everything and use up all the quota very quickly
+  const client = getTwitterClientV1();
   const oneDayAgo = new Date();
   oneDayAgo.setDate(oneDayAgo.getDate() - 1);
 
   let allTweets = [];
-  let users = [];
   let hasMore = true;
-  let nextToken = null;
+  let sinceId = null;
 
   while (hasMore) {
     const params = {
-      start_time: oneDayAgo.toISOString(),
-      max_results: 100,
-      "tweet.fields": "public_metrics,created_at",
-      "user.fields": "profile_image_url",
-      query: search.query,
-      next_token: nextToken,
-      expansions: "author_id",
+      count: 100,
+      q:
+        search.query +
+        ` (min_faves:${popularitySettings.minLikes} OR min_replies:${popularitySettings.minReplies})`,
+      since_id: sinceId,
+      result_type: "recent",
+      tweet_mode: "extended",
     };
 
-    const baseUrl = "tweets/search/recent";
+    const baseUrl = "search/tweets.json";
     const queryParams = Object.keys(params)
       .filter((it) => params[it])
       .map((key) => `${key}=${encodeURIComponent(params[key])}`)
@@ -217,19 +202,22 @@ async function retrieveTweets(search) {
 
     functions.logger.info("Requesting twitter url", { fullUrl });
 
-    const { data, meta, includes } = await client.get(fullUrl);
-    if (meta.result_count !== 100) {
+    const { statuses, search_metadata } = await client.get(fullUrl);
+    statuses.forEach((status) => {
+      delete status.entities;
+      delete status.user.entities;
+    });
+    if (statuses.length !== 100) {
       hasMore = false;
     } else {
-      nextToken = meta.next_token;
+      sinceId = search_metadata.max_id;
     }
-    allTweets = allTweets.concat(data);
-    users = users.concat(includes?.users || []);
+    allTweets = allTweets.concat(statuses);
 
     new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  return { tweets: allTweets.filter((it) => it), users };
+  return allTweets;
 }
 
 module.exports = {
