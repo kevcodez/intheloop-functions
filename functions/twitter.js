@@ -16,7 +16,7 @@ function getTwitterClient() {
 async function retrieveTweetsWithUserData(topic, page) {
   const client = getTwitterClient();
   const pageSize = 20;
-  const pageStart = (page.value - 1) * pageSize;
+  const pageStart = (page - 1) * pageSize;
   const { data: tweetsFromSupabase, error, count } = await supabase
     .from("tweets")
     .select("id", { count: "exact" })
@@ -34,33 +34,37 @@ async function retrieveTweetsWithUserData(topic, page) {
 
   const tweetIds = tweetsFromSupabase.map((it) => it.id);
 
-  const params = {
-    "tweet.fields": "public_metrics,created_at,entities",
-    "user.fields": "profile_image_url",
-    "media.fields": "preview_image_url",
-    ids: tweetIds,
-    expansions: "author_id,attachments.media_keys",
-  };
+  let tweetsWithUser = [];
 
-  const baseUrl = "tweets";
-  const queryParams = Object.keys(params)
-    .filter((it) => params[it])
-    .map((key) => `${key}=${encodeURIComponent(params[key])}`)
-    .join("&");
-
-  const fullUrl = baseUrl + "?" + queryParams;
-
-  functions.logger.info("Requesting twitter", { fullUrl });
-
-  const { data, includes } = await client.get(fullUrl);
-
-  const tweetsWithUser = data.map((tweet) => {
-    return {
-      user: includes.users.find((it) => it.id === tweet.author_id),
-      includes,
-      ...tweet,
+  if (tweetIds.length) {
+    const params = {
+      "tweet.fields": "public_metrics,created_at,entities",
+      "user.fields": "profile_image_url",
+      "media.fields": "preview_image_url",
+      ids: tweetIds,
+      expansions: "author_id,attachments.media_keys",
     };
-  });
+
+    const baseUrl = "tweets";
+    const queryParams = Object.keys(params)
+      .filter((it) => params[it])
+      .map((key) => `${key}=${encodeURIComponent(params[key])}`)
+      .join("&");
+
+    const fullUrl = baseUrl + "?" + queryParams;
+
+    functions.logger.info("Requesting twitter", { fullUrl });
+
+    const { data, includes } = await client.get(fullUrl);
+
+    tweetsWithUser = data.map((tweet) => {
+      return {
+        user: includes.users.find((it) => it.id === tweet.author_id),
+        includes,
+        ...tweet,
+      };
+    });
+  }
 
   return {
     tweets: tweetsWithUser,
