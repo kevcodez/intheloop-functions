@@ -4,6 +4,7 @@ const { supabase } = require("./supabase");
 const { asyncForEach } = require("./asyncForEach");
 const npmFetch = require("npm-registry-fetch");
 const { Bugsnag } = require("./bugsnag");
+const _ = require("lodash");
 
 const octokit = new Octokit();
 
@@ -33,11 +34,9 @@ const getNewReleasesFromNpm = async () => {
     await saveUnknownReleases(topic, releasesFromNpm);
 
     const timeKeys = Object.keys(npmData.time).filter(
-      (it) => !it.startsWith("0.0.0")  && !it.includes("canary")
+      (it) => !it.startsWith("0.0.0") && !it.includes("canary")
     );
     const latestReleaseVersion = timeKeys[timeKeys.length - 1];
-
-    console.log("latest " + latestReleaseVersion);
 
     await saveLatestVersion(topic, latestReleaseVersion);
   });
@@ -91,6 +90,7 @@ const getTopicsByReleaseType = async (via) => {
   if (error) {
     functions.logger.error(error);
     Bugsnag.notify(error);
+    return;
   }
 
   return data;
@@ -102,22 +102,29 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
     releases: fetchedReleases.map((it) => it.version),
   });
 
-  console.log("fff ");
-  console.log(fetchedReleases.map((it) => it.version));
+  const releasesFromSupabase = [];
 
-  const { data: releasesFromSupabase, error } = await supabase
-    .from("release")
-    .select("info")
-    .eq("topic", topic.id)
-    .in(
-      "info->>version",
-      fetchedReleases.map((it) => it.version)
-    );
+  // Need to chunk for Supabase
+  const versionChunks = _.chunk(
+    fetchedReleases.map((it) => it.version),
+    100
+  );
 
-  if (error) {
-    functions.logger.error(error.message);
-    Bugsnag.notify(new Error(error.message));
-  }
+  await asyncForEach(versionChunks, async (versions) => {
+    const { data, error } = await supabase
+      .from("release")
+      .select("info")
+      .eq("topic", topic.id)
+      .in("info->>version", versions);
+
+    releasesFromSupabase.push(...data);
+
+    if (error) {
+      functions.logger.error(error.message);
+      Bugsnag.notify(new Error(error.message));
+      return;
+    }
+  });
 
   const releasesNotInDatabaseYet = fetchedReleases.filter(
     (release) =>
@@ -125,7 +132,10 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
   );
 
   if (releasesNotInDatabaseYet.length) {
-    functions.logger.info("Saving new releases", releasesNotInDatabaseYet);
+    functions.logger.info("Saving new releases", {
+      releasesInSupabase: releasesFromSupabase.length,
+      releasesNotInDatabase: releasesNotInDatabaseYet.length,
+    });
   }
 
   const releasesNotInDatabseWithTopic = releasesNotInDatabaseYet.map(
