@@ -11,7 +11,6 @@ async function parseRssFeed(feedUrl) {
   const feed = await parser.parseURL(feedUrl);
 
   return feed.items.map((item) => {
-    console.log(item)
     return {
       title: item.title,
       link: item.link,
