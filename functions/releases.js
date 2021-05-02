@@ -16,8 +16,10 @@ const getNewReleasesFromNpm = async () => {
       "/" + topic.info.fetchReleases.meta.package
     );
 
+    const termsToIgnore = ["0.0.0", "canary", "dev", "insider"];
+
     const releasesFromNpm = Object.keys(npmData.versions)
-      .filter((it) => !it.startsWith("0.0.0") && !it.includes("canary"))
+      .filter((it) => !termsToIgnore.some((ignore) => it.includes(ignore)))
       .map((version) => {
         const versionDetails = npmData.versions[version];
 
@@ -34,7 +36,7 @@ const getNewReleasesFromNpm = async () => {
     await saveUnknownReleases(topic, releasesFromNpm);
 
     const timeKeys = Object.keys(npmData.time).filter(
-      (it) => !it.startsWith("0.0.0") && !it.includes("canary")
+      (it) => !termsToIgnore.some((ignore) => it.includes(ignore))
     );
     const latestReleaseVersion = timeKeys[timeKeys.length - 1];
 
