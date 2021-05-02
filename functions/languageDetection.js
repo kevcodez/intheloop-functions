@@ -7,6 +7,9 @@ const translate = new Translate({
 });
 
 async function detectLanguage(text) {
+  if (!text) {
+    return null
+  }
   const strippedText = text.replace(/(<([^>]+)>)/gi, "");
   const htmlEntitiesDecoded = decode(strippedText);
 

@@ -10,15 +10,18 @@ const parser = new Parser({
 async function parseRssFeed(feedUrl) {
   const feed = await parser.parseURL(feedUrl);
 
+  
   return feed.items.map((item) => {
+    const summary = item.description || item.summary || item.content
+
     return {
       title: item.title,
       link: item.link,
-      image: getImageUrl(item.summary) || null,
+      image: getImageUrl(summary) || null,
       publishedAt: item.isoDate, // pubDate
-      writtenBy: item.creator,
+      writtenBy: item.creator || item.author,
       guid: item.guid || item.id, 
-      summary: item.description || item.summary,
+      summary,
       categories: item.categories || [],
     };
   });
