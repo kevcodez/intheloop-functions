@@ -6,6 +6,9 @@
 
 This repository contains Firebase functions for API endpoints and scheduled functions.
 
+The Firebase functions will likely be migrated to a Kotlin backend.
+As for persistence, [Supabase](https://supabase.io) is used - which is PostgreSQL based.
+
 ### Blog posts
 
 A blog *may* have a RSS feed url.
@@ -15,7 +18,7 @@ The Google Translate API is used to determine the language of the blog post as w
 ### Popular tweets
 
 The V1 Twitter API is used to fetch popular tweets.
-The V2 API does not allow filtering by minimum favorites or replies and consumes *a lot* of quota as one has to loop through all relevant tweets.
+The V2 Twitter API does not allow filtering by minimum favorites or replies and consumes *a lot* of quota as one has to loop through all relevant tweets.
 With the V1 API, we can simply include those filters in the search query.
 
 ### Releases
