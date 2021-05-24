@@ -4,12 +4,13 @@ const { asyncForEach } = require("./asyncForEach");
 const functions = require("firebase-functions");
 const { Bugsnag } = require("./bugsnag");
 const { detectLanguage } = require("./languageDetection");
+const _ = require("lodash");
 
 const getNewRssPosts = async () => {
   const { data: blogs, error } = await supabase.from("blog").select("*");
 
   if (error) {
-    functions.logger.error(error)
+    functions.logger.error(error);
     Bugsnag.notify(error);
     return [];
   }
@@ -19,7 +20,11 @@ const getNewRssPosts = async () => {
   await asyncForEach(blogsWithRssFeed, async (blog) => {
     const blogPosts = await parseRssFeed(blog.info.rssFeedUrl);
 
-    await saveNewBlogPosts(blog, blogPosts);
+    // Make sure not to run in query limits with Supabase
+    const chunked = _.chunk(blogPosts, 15);
+    for (const chunk of chunked) {
+      await saveNewBlogPosts(blog, chunk);
+    }
   });
 };
 
@@ -34,7 +39,7 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
     );
 
   if (error) {
-    functions.logger.error(error)
+    functions.logger.error(error);
     Bugsnag.notify(error);
     return;
   }

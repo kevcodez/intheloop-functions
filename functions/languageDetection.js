@@ -14,7 +14,7 @@ async function detectLanguage(text) {
   const htmlEntitiesDecoded = decode(strippedText);
 
   // Google Cloud bills based on the amount of characters
-  const maxCharacterCount = 100;
+  const maxCharacterCount = 50;
   const partOfTheText =
     htmlEntitiesDecoded.length > maxCharacterCount
       ? htmlEntitiesDecoded.slice(0, maxCharacterCount)
