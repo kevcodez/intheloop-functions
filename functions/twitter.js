@@ -31,7 +31,7 @@ async function retrieveTweetsWithUserData(topic, page) {
   const { data: tweetsFromSupabase, error, count } = await supabase
     .from("tweets")
     .select("id", { count: "exact" })
-    .cs("topics", [topic])
+    .containedBy("topics", topic.split(','))
     .range(pageStart, pageStart + pageSize - 1)
     .limit(25)
     .order(`created_at`, { ascending: false });
