@@ -66,6 +66,7 @@ const saveNewBlogPosts = async (blog, blogPosts) => {
       blog_id: blog.id,
       topics: blog.topics,
       language: blogPostLanguage,
+      published_at: blogPostInfo.publishedAt,
     });
   });
 

@@ -145,6 +145,7 @@ const saveUnknownReleases = async (topic, fetchedReleases) => {
       return {
         info: release,
         topic: topic.id,
+        published_at: release.publishedAt
       };
     }
   );
