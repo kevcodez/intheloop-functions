@@ -78,7 +78,7 @@ exports.refreshGithubReleasesScheduled = functions
     timeoutSeconds: 300,
     memory: "1GB",
   })
-  .pubsub.schedule("every 3 hours")
+  .pubsub.schedule("every 12 hours")
   .onRun(async () => {
     // idea: possibly tag release type: stable, beta, milestone, release candidate, eap
     await getNewReleasesFromGithub();
@@ -90,7 +90,7 @@ exports.refreshNpmReleasesScheduled = functions
     timeoutSeconds: 300,
     memory: "1GB",
   })
-  .pubsub.schedule("every 3 hours")
+  .pubsub.schedule("every 12 hours")
   .onRun(async () => {
     await getNewReleasesFromNpm();
   });
@@ -101,7 +101,7 @@ exports.refreshRssFeedsScheduled = functions
     timeoutSeconds: 300,
     memory: "1GB",
   })
-  .pubsub.schedule("every 6 hours")
+  .pubsub.schedule("every 12 hours")
   .onRun(async () => {
     await getNewRssPosts();
   });
@@ -112,7 +112,7 @@ exports.refreshPopularTweetsScheduled = functions
     timeoutSeconds: 300,
     memory: "1GB",
   })
-  .pubsub.schedule("every 8 hours")
+  .pubsub.schedule("every 12 hours")
   .onRun(async () => {
     await refreshPopularTweets();
   });
