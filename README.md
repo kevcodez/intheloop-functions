@@ -26,10 +26,6 @@ With the V1 API, we can simply include those filters in the search query.
 Releases are fetched through NPM or Github, depending on the project.
 Even though there might be relases on Github, it does not mean that the API will return all those releases, thus, we have to be careful when selecting the source for releases.
 
-## Roadmap
-
-The rough roadmap can be found [here](https://intheloop.dev/roadmap) and is powered by [productstash.io](productstash.io).
-
 ## Repositories
 
 - [Web](https://github.com/kevcodez/intheloop) - Nuxt.js web app that powers [Intheloop](https://intheloop.dev)

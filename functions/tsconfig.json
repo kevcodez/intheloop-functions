@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+      "lib": ["ESNext"],
+      "target": "ES6",
+      "module": "ESNext",
+      "moduleResolution": "node",
+      "outDir": "dist",
+      "strict": true,
+      "esModuleInterop": true,
+      "sourceMap": true,
+      "skipLibCheck": true,
+      "resolveJsonModule": true,
+      "emitDecoratorMetadata": true,
+      "experimentalDecorators": true,
+      "noImplicitAny": true,
+      "removeComments": true
+    },
+    "include": ["changelog/**/*"],
+    "exclude": ["node_modules", "dist"],
+    "ts-node": {
+        "esm": true,
+      "swc": true
+    }
+  }
+  
