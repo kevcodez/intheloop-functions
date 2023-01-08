@@ -1,19 +1,9 @@
 const functions = require("firebase-functions");
 const cors = require("cors")({ origin: true });
 const { subscribeToNewsletter } = require("./newsletter");
-const { getNewRssPosts } = require("./blogPosts");
 const {
-  getNewReleasesFromGithub,
-  getNewReleasesFromNpm,
-} = require("./releases");
-const {
-  refreshPopularTweets,
   retrieveTweetsWithUserData,
-  retrieveTweets,
 } = require("./twitter");
-const { Bugsnag } = require("./bugsnag");
-
-Bugsnag.start({ apiKey: functions.config().bugsnag.api_key });
 
 exports.subscribeToNewsletter = functions
   .region("europe-west1")
@@ -52,67 +42,4 @@ exports.getTweetsByTopic = functions
         response.status(500).send();
       }
     });
-  });
-
-exports.retrieveTweetsBySearch = functions
-  .region("europe-west1")
-  .https.onRequest((request, response) => {
-    cors(request, response, async () => {
-      if (!request.body || request.method !== "POST") {
-        return response.status(400).send();
-      }
-
-      try {
-        const { search, popularitySettings } = request.body;
-        const data = await retrieveTweets(search, popularitySettings);
-        return response.status(200).json(data).send();
-      } catch (err) {
-        return response.status(500).send(err);
-      }
-    });
-  });
-
-exports.refreshGithubReleasesScheduled = functions
-  .region("europe-west1")
-  .runWith({
-    timeoutSeconds: 300,
-    memory: "1GB",
-  })
-  .pubsub.schedule("every 12 hours")
-  .onRun(async () => {
-    // idea: possibly tag release type: stable, beta, milestone, release candidate, eap
-    await getNewReleasesFromGithub();
-  });
-
-exports.refreshNpmReleasesScheduled = functions
-  .region("europe-west1")
-  .runWith({
-    timeoutSeconds: 300,
-    memory: "1GB",
-  })
-  .pubsub.schedule("every 12 hours")
-  .onRun(async () => {
-    await getNewReleasesFromNpm();
-  });
-
-exports.refreshRssFeedsScheduled = functions
-  .region("europe-west1")
-  .runWith({
-    timeoutSeconds: 300,
-    memory: "1GB",
-  })
-  .pubsub.schedule("every 12 hours")
-  .onRun(async () => {
-    await getNewRssPosts();
-  });
-
-exports.refreshPopularTweetsScheduled = functions
-  .region("europe-west1")
-  .runWith({
-    timeoutSeconds: 300,
-    memory: "1GB",
-  })
-  .pubsub.schedule("every 12 hours")
-  .onRun(async () => {
-    await refreshPopularTweets();
   });

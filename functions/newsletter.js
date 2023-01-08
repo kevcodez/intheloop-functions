@@ -1,6 +1,5 @@
 const functions = require("firebase-functions");
 const got = require("got");
-const { Bugsnag } = require("./bugsnag");
 
 async function subscribeToNewsletter(email) {
   if (!email || !/^\S+@\S+$/.test(email)) {
@@ -30,8 +29,6 @@ async function subscribeToNewsletter(email) {
     };
   } catch (error) {
     const statusCode = error.response.statusCode;
-
-    Bugsnag.notify(error);
 
     functions.logger.info(
       `Received status code ${statusCode} when trying to register email`
